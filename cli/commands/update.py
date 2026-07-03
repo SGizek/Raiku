@@ -69,10 +69,20 @@ def update_cmd(
     updates_available: list[dict] = []
     up_to_date: list[str] = []
     not_in_index: list[str] = []
+    skipped_pinned: list[str] = []
+
+    from core.pins import PinManager
+    pm = PinManager()
 
     for meta in installed:
         name = meta.get("name", "")
         current_ver = meta.get("version", "0.0.0")
+
+        # Respect pins
+        if pm.is_pinned(name) and update_all:
+            skipped_pinned.append(f"{name} v{current_ver}")
+            continue
+
         entry = manager.find(name)
 
         if entry is None:
@@ -96,6 +106,8 @@ def update_cmd(
     # --- Summary ---
     if not updates_available:
         console.print("[bold green]✓ All packages are up to date.[/bold green]")
+        if skipped_pinned:
+            console.print(f"  [dim]Skipped {len(skipped_pinned)} pinned package(s): {', '.join(skipped_pinned)}[/dim]")
         if up_to_date and cfg.verbose:
             for name in up_to_date:
                 console.print(f"  [dim]up to date: {name}[/dim]")

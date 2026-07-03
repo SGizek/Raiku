@@ -66,7 +66,7 @@ class PackageFetcher:
         for filename in all_files:
             url = f"{self.raw_base_url}/{package_path}/{filename}"
             try:
-                data = self._get(url)
+                data = self._get(url, progress_callback=progress_callback, label=filename)
                 fetched[filename] = data
                 if progress_callback:
                     progress_callback(filename)
@@ -123,10 +123,11 @@ class PackageFetcher:
     # Low-level HTTP
     # ------------------------------------------------------------------
 
-    def _get(self, url: str) -> bytes:
-        """GET a URL and return its bytes. Raises FetchError on failure."""
+    def _get(self, url: str, progress_callback: Optional[Any] = None, label: str = "") -> bytes:
+        """GET a URL and return its bytes. Raises FetchError on failure.
+        Streams response and calls progress_callback(bytes_downloaded, total) if provided."""
         try:
-            resp = self.session.get(url, timeout=self.TIMEOUT)
+            resp = self.session.get(url, timeout=self.TIMEOUT, stream=True)
         except requests.RequestException as exc:
             raise FetchError(f"Network error fetching {url}: {exc}") from exc
 
@@ -136,7 +137,26 @@ class PackageFetcher:
             raise FetchError(
                 f"HTTP {resp.status_code} fetching {url}: {resp.reason}"
             )
-        return resp.content
+
+        total = int(resp.headers.get("content-length", 0))
+        chunks: list[bytes] = []
+        downloaded = 0
+
+        for chunk in resp.iter_content(chunk_size=8192):
+            if chunk:
+                chunks.append(chunk)
+                downloaded += len(chunk)
+                if progress_callback and callable(progress_callback):
+                    # Try calling with (downloaded, total, label) signature
+                    try:
+                        progress_callback(downloaded, total, label)
+                    except TypeError:
+                        try:
+                            progress_callback(label)
+                        except Exception:
+                            pass
+
+        return b"".join(chunks)
 
     def check_reachable(self) -> bool:
         """Return True if the raw base URL is reachable."""
