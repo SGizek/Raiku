@@ -1,0 +1,13 @@
+[package]
+name = "blazing-vec"
+version = "1.0.0"
+edition = "2021"
+authors = ["Graydon Hoare"]
+description = "Zero-cost SIMD vector operations for Rust."
+license = "MIT"
+
+[lib]
+name = "blazing_vec"
+path = "lib.rs"
+
+[dependencies]

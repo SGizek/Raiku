@@ -1,0 +1,9 @@
+name = "zigutils"
+version = "1.0.0"
+language = "Zig"
+author = "Andrew Kelley"
+description = "General-purpose utility functions for Zig projects."
+license = "MIT"
+homepage = "https://github.com/SGizek/Raiku"
+build_command = "zig build"
+dependencies = []

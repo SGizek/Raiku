@@ -1,0 +1,9 @@
+name = "sharputils"
+version = "1.0.0"
+language = "CSharp"
+author = "Anders Hejlsberg"
+description = "Utility extensions for .NET collections and strings."
+license = "MIT"
+homepage = "https://github.com/SGizek/Raiku"
+build_command = "dotnet build src/sharputils.csproj -c Release"
+dependencies = []

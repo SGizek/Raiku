@@ -1,0 +1,8 @@
+version: "1.0.0"
+release_date: "2026-07-03"
+stability_level: stable
+changelog:
+  - "Initial release"
+  - "Generic Queue[T] with Enqueue, Dequeue, Peek, Len, IsEmpty"
+  - "Thread-safe variant SafeQueue[T] backed by sync.Mutex"
+  - "Priority queue PriorityQueue[T] using container/heap"

@@ -1,0 +1,9 @@
+name = "cmatrix"
+version = "1.0.0"
+language = "C"
+author = "Dennis Ritchie"
+description = "Lightweight matrix operations library in pure C."
+license = "MIT"
+homepage = "https://github.com/SGizek/Raiku"
+build_command = "gcc -O2 -Wall -Wextra -o cmatrix src/cmatrix.c -lm"
+dependencies = []

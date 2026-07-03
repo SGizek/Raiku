@@ -1,0 +1,9 @@
+name = "blazing-vec"
+version = "1.0.0"
+language = "Rust"
+author = "Graydon Hoare"
+description = "Zero-cost SIMD vector operations for Rust."
+license = "MIT"
+homepage = "https://github.com/SGizek/Raiku"
+build_command = "cargo build --release"
+dependencies = []

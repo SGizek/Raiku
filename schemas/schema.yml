@@ -1,0 +1,223 @@
+# =============================================================================
+# Raiku Schema Definitions v1.0.0
+#
+# This file defines the canonical validation schemas for all Raiku package
+# manifests and the index.  The Python validator (validator/schema_validator.py)
+# reads and enforces these definitions using the Cerberus library.
+# =============================================================================
+
+schema_version: "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Supported values (shared across schemas)
+# ---------------------------------------------------------------------------
+supported_languages:
+  - Python
+  - Rust
+  - C
+  - CPP
+  - Zig
+  - Java
+  - CSharp
+  - Go
+
+stability_levels:
+  - stable
+  - beta
+  - alpha
+  - experimental
+
+# ---------------------------------------------------------------------------
+# raiku.toml schema
+#
+# Every package MUST supply a raiku.toml that satisfies all required fields.
+# ---------------------------------------------------------------------------
+raiku_toml:
+  name:
+    type: string
+    required: true
+    minlength: 1
+    maxlength: 64
+    regex: "^[a-zA-Z0-9_\\-]+$"
+    description: >
+      Unique package identifier.  Only ASCII letters, digits, hyphens, and
+      underscores are permitted.  Must be lowercase by convention.
+
+  version:
+    type: string
+    required: true
+    regex: "^\\d+\\.\\d+\\.\\d+.*$"
+    description: >
+      Semantic version string (semver).  Must follow MAJOR.MINOR.PATCH
+      with an optional pre-release suffix (e.g. 1.0.0-beta.1).
+
+  language:
+    type: string
+    required: true
+    allowed: !include supported_languages
+    description: >
+      Target language.  Must exactly match one of the supported_languages
+      values (case-sensitive).
+
+  author:
+    type: string
+    required: true
+    minlength: 1
+    maxlength: 128
+    description: Name or handle of the package author.
+
+  build_command:
+    type: string
+    required: true
+    minlength: 1
+    maxlength: 512
+    description: >
+      The command used to build or install this package.  Commands are
+      executed inside the cached package directory.  Raiku enforces a
+      security blocklist of forbidden patterns before any command runs.
+      In safe_mode (the default), the user must explicitly approve each
+      build command.
+
+  description:
+    type: string
+    required: false
+    maxlength: 512
+    description: Short human-readable description of the package.
+
+  license:
+    type: string
+    required: false
+    maxlength: 64
+    description: SPDX license identifier (e.g. MIT, Apache-2.0).
+
+  homepage:
+    type: string
+    required: false
+    maxlength: 256
+    description: URL of the project homepage or repository.
+
+  dependencies:
+    type: list
+    required: false
+    schema:
+      type: string
+    description: >
+      List of Raiku package names that must be installed before this one.
+      Each element must be a valid Raiku package name string.
+
+# ---------------------------------------------------------------------------
+# version.yml schema
+# ---------------------------------------------------------------------------
+version_yml:
+  version:
+    type: string
+    required: true
+    regex: "^\\d+\\.\\d+\\.\\d+.*$"
+    description: >
+      Must match the version field in raiku.toml exactly.
+
+  release_date:
+    type: string          # YYYY-MM-DD; YAML may deserialise as date object
+    required: true
+    regex: "^\\d{4}-\\d{2}-\\d{2}$"
+    description: ISO 8601 date of this release (YYYY-MM-DD).
+
+  changelog:
+    type: string_or_list
+    required: true
+    description: >
+      Human-readable change notes for this version.  May be a single string
+      or a list of bullet-point strings.
+
+  stability_level:
+    type: string
+    required: true
+    allowed: !include stability_levels
+    description: >
+      Release maturity.  One of: stable | beta | alpha | experimental.
+
+# ---------------------------------------------------------------------------
+# index.json entry schema
+#
+# Each object in the "packages" array must satisfy these rules.
+# ---------------------------------------------------------------------------
+index_entry:
+  name:
+    type: string
+    required: true
+    minlength: 1
+    maxlength: 64
+    description: Must match the name field in the package's raiku.toml.
+
+  version:
+    type: string
+    required: true
+    regex: "^\\d+\\.\\d+\\.\\d+.*$"
+    description: Current published version.
+
+  language:
+    type: string
+    required: true
+    allowed: !include supported_languages
+    description: Target language (must match raiku.toml).
+
+  author:
+    type: string
+    required: false
+    maxlength: 128
+    description: Package author name or handle.
+
+  description:
+    type: string
+    required: false
+    maxlength: 512
+    description: Short description shown in search results.
+
+  path:
+    type: string
+    required: true
+    regex: "^UserSub/[A-Za-z]+/.+$"
+    description: >
+      Relative path to the package directory in the Raiku repository.
+      Must follow the pattern UserSub/<Language>/<package-name>.
+
+  sha256:
+    type: string
+    required: false
+    minlength: 64
+    maxlength: 64
+    description: >
+      SHA-256 hex digest of the package's raiku.toml file.  Used to verify
+      package integrity at install time.  Should be provided for all
+      packages; absence triggers a warning.
+
+# ---------------------------------------------------------------------------
+# Security rules (informational — enforced in code)
+# ---------------------------------------------------------------------------
+security:
+  hash_algorithm: sha256
+
+  forbidden_build_patterns:
+    - "rm -rf"
+    - "rmdir /s"
+    - "del /f"
+    - "format "
+    - ":(){:|:&};:"
+    - "dd if="
+    - "mkfs"
+    - "wget http"
+    - "curl http://"
+    - "> /dev/sd"
+    - "chmod 777"
+    - "sudo rm"
+    - "DROP TABLE"
+    - "__import__"
+    - "exec("
+    - "eval("
+    - "os.system"
+    - "subprocess.call"
+    - "subprocess.Popen"
+
+  safe_mode_default: true
+  auto_trust_default: false
+  build_timeout_seconds: 300

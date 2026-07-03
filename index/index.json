@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0.0",
+  "generated_by": "raiku",
+  "packages": [
+    {
+      "name": "fast-math",
+      "version": "1.0.0",
+      "language": "Python",
+      "author": "Ada Lovelace",
+      "description": "High-performance math utilities for numerical computing.",
+      "path": "UserSub/Python/fast-math",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "blazing-vec",
+      "version": "1.0.0",
+      "language": "Rust",
+      "author": "Graydon Hoare",
+      "description": "Zero-cost SIMD vector operations for Rust.",
+      "path": "UserSub/Rust/blazing-vec",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cmatrix",
+      "version": "1.0.0",
+      "language": "C",
+      "author": "Dennis Ritchie",
+      "description": "Lightweight matrix operations library in pure C.",
+      "path": "UserSub/C/cmatrix",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "geompp",
+      "version": "1.0.0",
+      "language": "CPP",
+      "author": "Bjarne Stroustrup",
+      "description": "Header-only 3D geometry primitives for C++17.",
+      "path": "UserSub/CPP/geompp",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "zigutils",
+      "version": "1.0.0",
+      "language": "Zig",
+      "author": "Andrew Kelley",
+      "description": "General-purpose utility functions for Zig projects.",
+      "path": "UserSub/Zig/zigutils",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "javastream",
+      "version": "1.0.0",
+      "language": "Java",
+      "author": "James Gosling",
+      "description": "Extended Java Stream combinators and collectors.",
+      "path": "UserSub/Java/javastream",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "sharputils",
+      "version": "1.0.0",
+      "language": "CSharp",
+      "author": "Anders Hejlsberg",
+      "description": "Utility extensions for .NET collections and strings.",
+      "path": "UserSub/CSharp/sharputils",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "goqueue",
+      "version": "1.0.0",
+      "language": "Go",
+      "author": "Rob Pike",
+      "description": "Thread-safe generic queue implementation for Go.",
+      "path": "UserSub/Go/goqueue",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

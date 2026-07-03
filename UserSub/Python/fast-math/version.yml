@@ -1,0 +1,7 @@
+version: "1.0.0"
+release_date: "2026-07-03"
+stability_level: stable
+changelog:
+  - "Initial release"
+  - "Fast integer and floating-point operations"
+  - "Vectorised dot product and cross product helpers"

@@ -1,0 +1,7 @@
+version: "1.0.0"
+release_date: "2026-07-03"
+stability_level: stable
+changelog:
+  - "Initial release"
+  - "Fixed-size 4x4 matrix allocation and arithmetic"
+  - "Matrix multiply, transpose, identity, and scalar operations"

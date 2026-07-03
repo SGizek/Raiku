@@ -1,0 +1,9 @@
+name = "javastream"
+version = "1.0.0"
+language = "Java"
+author = "James Gosling"
+description = "Extended Java Stream combinators and collectors."
+license = "MIT"
+homepage = "https://github.com/SGizek/Raiku"
+build_command = "javac -d out src/dev/raiku/javastream/*.java"
+dependencies = []

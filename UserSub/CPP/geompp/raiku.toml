@@ -1,0 +1,9 @@
+name = "geompp"
+version = "1.0.0"
+language = "CPP"
+author = "Bjarne Stroustrup"
+description = "Header-only 3D geometry primitives for C++17."
+license = "MIT"
+homepage = "https://github.com/SGizek/Raiku"
+build_command = "cmake -S src -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build"
+dependencies = []

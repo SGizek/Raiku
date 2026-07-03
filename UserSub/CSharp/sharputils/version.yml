@@ -1,0 +1,7 @@
+version: "1.0.0"
+release_date: "2026-07-03"
+stability_level: stable
+changelog:
+  - "Initial release"
+  - "IEnumerable extensions: Chunk, Windowed, Zip, DistinctBy"
+  - "String extensions: IsNullOrWhiteSpace guard, Truncate, ToTitleCase"

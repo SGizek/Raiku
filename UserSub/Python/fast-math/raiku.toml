@@ -1,0 +1,9 @@
+name = "fast-math"
+version = "1.0.0"
+language = "Python"
+author = "Ada Lovelace"
+description = "High-performance math utilities for numerical computing."
+license = "MIT"
+homepage = "https://github.com/SGizek/Raiku"
+build_command = "pip install -e ."
+dependencies = []

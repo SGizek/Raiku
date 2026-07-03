@@ -1,0 +1,7 @@
+version: "1.0.0"
+release_date: "2026-07-03"
+stability_level: stable
+changelog:
+  - "Initial release"
+  - "StreamUtils: zip, windowed, chunk, interleave"
+  - "MoreCollectors: toUnmodifiableMap, counting by key"

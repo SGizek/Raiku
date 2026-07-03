@@ -1,0 +1,7 @@
+version: "1.0.0"
+release_date: "2026-07-03"
+stability_level: stable
+changelog:
+  - "Initial release"
+  - "Vec3, Ray, AABB, Sphere, Plane primitives"
+  - "Ray-AABB and ray-sphere intersection tests"

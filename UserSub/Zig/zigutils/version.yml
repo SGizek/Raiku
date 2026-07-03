@@ -1,0 +1,8 @@
+version: "1.0.0"
+release_date: "2026-07-03"
+stability_level: stable
+changelog:
+  - "Initial release"
+  - "String utilities: trim, split, starts_with, ends_with"
+  - "Math helpers: clamp, lerp, isPowerOfTwo"
+  - "Slice utilities: contains, indexOf"

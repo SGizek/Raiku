@@ -1,0 +1,9 @@
+name = "goqueue"
+version = "1.0.0"
+language = "Go"
+author = "Rob Pike"
+description = "Thread-safe generic queue implementation for Go."
+license = "MIT"
+homepage = "https://github.com/SGizek/Raiku"
+build_command = "go build ./..."
+dependencies = []
