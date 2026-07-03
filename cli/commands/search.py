@@ -24,13 +24,18 @@ from index.index_manager import IndexManager, IndexError
     help=f"Filter by language. Supported: {', '.join(SUPPORTED_LANGUAGES)}",
 )
 @click.option(
+    "--tag", "-t",
+    default=None,
+    help="Filter by tag (e.g. math, utils, concurrency).",
+)
+@click.option(
     "--limit", "-n",
     default=20,
     show_default=True,
     help="Maximum number of results to display.",
 )
 @click.pass_context
-def search_cmd(ctx: click.Context, query: str, language: str | None, limit: int) -> None:
+def search_cmd(ctx: click.Context, query: str, language: str | None, tag: str | None, limit: int) -> None:
     """Search the package index for QUERY."""
     cfg: RaikuConfig = ctx.obj["config"]
     console: Console = ctx.obj["console"]
@@ -53,11 +58,19 @@ def search_cmd(ctx: click.Context, query: str, language: str | None, limit: int)
         console.print("Run [cyan]raiku sync[/cyan] to download the index first.")
         raise click.Abort()
 
+    # Tag filter
+    if tag:
+        results = [
+            r for r in results
+            if tag.lower() in [t.lower() for t in r.get("tags", [])]
+        ]
+
     if not results:
         console.print(
             f"[yellow]No packages found[/yellow] matching "
             f"[bold]'{query}'[/bold]"
             + (f" for language [cyan]{language}[/cyan]" if language else "")
+            + (f" with tag [cyan]{tag}[/cyan]" if tag else "")
             + "."
         )
         return
@@ -67,7 +80,9 @@ def search_cmd(ctx: click.Context, query: str, language: str | None, limit: int)
     total = len(results)
 
     table = Table(
-        title=f"Search results for '{query}'" + (f" [{language}]" if language else ""),
+        title=f"Search results for '{query}'"
+              + (f" [{language}]" if language else "")
+              + (f" #{tag}" if tag else ""),
         show_header=True,
         header_style="bold magenta",
         expand=False,
@@ -76,14 +91,17 @@ def search_cmd(ctx: click.Context, query: str, language: str | None, limit: int)
     table.add_column("Version", style="green", min_width=8)
     table.add_column("Language", style="yellow", min_width=10)
     table.add_column("Author", style="white", min_width=15)
+    table.add_column("Tags", style="dim cyan", min_width=20)
     table.add_column("Description", style="dim white", min_width=30)
 
     for pkg in shown:
+        tags_str = ", ".join(pkg.get("tags", []))
         table.add_row(
             pkg.get("name", "—"),
             pkg.get("version", "—"),
             pkg.get("language", "—"),
             pkg.get("author", "—"),
+            tags_str or "—",
             pkg.get("description", ""),
         )
 

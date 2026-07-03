@@ -52,13 +52,42 @@ def _cli_help():
     runner = CliRunner()
     result = runner.invoke(main, ["--help"])
     assert result.exit_code == 0, f"exit {result.exit_code}: {result.output}"
-    assert "sync" in result.output
-    assert "search" in result.output
-    assert "install" in result.output
-    assert "publish" in result.output
-    assert "validate" in result.output
+    for cmd in ["sync", "search", "install", "publish", "validate",
+                "list", "uninstall", "info", "update", "index",
+                "cache", "doctor", "config", "trust"]:
+        assert cmd in result.output, f"Command '{cmd}' missing from --help"
 
-check("cli --help (all commands listed)", _cli_help)
+check("cli --help (all 14 commands listed)", _cli_help)
+
+def _subcommand_helps():
+    from click.testing import CliRunner
+    from cli.main import main
+    runner = CliRunner()
+    for cmd in ["list", "uninstall", "info", "update", "doctor"]:
+        r = runner.invoke(main, [cmd, "--help"])
+        assert r.exit_code == 0, f"{cmd} --help failed: {r.output}"
+
+check("all new subcommands accept --help", _subcommand_helps)
+
+def _config_subcommands():
+    from click.testing import CliRunner
+    from cli.main import main
+    runner = CliRunner()
+    for sub in ["list", "get", "set", "reset"]:
+        r = runner.invoke(main, ["config", sub, "--help"])
+        assert r.exit_code == 0, f"config {sub} --help failed: {r.output}"
+
+check("config subcommands (list/get/set/reset) --help", _config_subcommands)
+
+def _trust_subcommands():
+    from click.testing import CliRunner
+    from cli.main import main
+    runner = CliRunner()
+    for sub in ["add", "remove", "list", "clear"]:
+        r = runner.invoke(main, ["trust", sub, "--help"])
+        assert r.exit_code == 0, f"trust {sub} --help failed: {r.output}"
+
+check("trust subcommands (add/remove/list/clear) --help", _trust_subcommands)
 
 # -----------------------------------------------------------------------
 # 3. index.json structure

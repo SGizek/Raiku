@@ -28,6 +28,7 @@ from validator.hash_validator import HashValidator, HashMismatchError
 from validator.rules_checker import RulesChecker, RulesViolationError
 from parser.toml_parser import parse_raiku_toml, TomlParseError
 from parser.yaml_parser import parse_version_yml, YamlParseError
+from core.trust import TrustManager
 
 
 @click.command("install")
@@ -180,6 +181,10 @@ def install_cmd(
 
         runner = BuildRunner(safe_mode=cfg.safe_mode, timeout=300)
 
+        # Check persistent trust
+        tm = TrustManager()
+        is_trusted = trust or tm.is_trusted(name) or not cfg.safe_mode
+
         def confirm_build(cmd: str) -> bool:
             return Confirm.ask(
                 f"  Run this build command for [bold]{name}[/bold]?",
@@ -191,7 +196,7 @@ def install_cmd(
                 build_command,
                 cwd=pkg_dir,
                 package_name=name,
-                trusted=trust or not cfg.safe_mode,
+                trusted=is_trusted,
                 confirm_callback=confirm_build,
             )
             console.print(f"  [green]✓[/green] Build completed (exit {exit_code})")

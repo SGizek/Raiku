@@ -1,0 +1,43 @@
+name: Auto-Rebuild Index
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "UserSub/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    name: Rebuild index/index.json
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Use a PAT or the default GITHUB_TOKEN
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Raiku CLI
+        run: pip install -e .
+
+      - name: Rebuild index
+        run: raiku index --rebuild --root .
+
+      - name: Commit updated index
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index/index.json
+          git diff --cached --quiet || git commit -m "chore: rebuild index/index.json [skip ci]"
+          git push

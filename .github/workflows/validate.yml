@@ -1,0 +1,38 @@
+name: Validate All Packages
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate packages & index
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Raiku CLI
+        run: pip install -e .
+
+      - name: Check index.json is valid JSON
+        run: python -c "import json; json.load(open('index/index.json'))"
+
+      - name: Validate all packages (strict)
+        run: raiku validate --all --strict --dir .
+
+      - name: Check index entries match UserSub/
+        run: raiku index --check --root .
+
+      - name: Run Raiku self-tests
+        run: python _verify.py
