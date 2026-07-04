@@ -19,12 +19,12 @@ from installer.cache_store import CacheStore
 
 @click.command("info")
 @click.argument("package")
-@click.option(
-    "--json", "as_json", is_flag=True, default=False,
-    help="Output as JSON.",
-)
+@click.option("--json", "as_json", is_flag=True, default=False,
+              help="Output as JSON.")
+@click.option("--changelog", "show_changelog", is_flag=True, default=False,
+              help="Show the full changelog from version.yml.")
 @click.pass_context
-def info_cmd(ctx: click.Context, package: str, as_json: bool) -> None:
+def info_cmd(ctx: click.Context, package: str, as_json: bool, show_changelog: bool) -> None:
     """Show detailed information about PACKAGE."""
     cfg: RaikuConfig = ctx.obj["config"]
     console: Console = ctx.obj["console"]
@@ -98,3 +98,35 @@ def info_cmd(ctx: click.Context, package: str, as_json: bool) -> None:
         title=f"[bold]{entry.get('name')}[/bold] — Package Info",
         border_style="cyan",
     ))
+
+    # --- Changelog panel ---
+    if show_changelog:
+        store = CacheStore(cfg.cache_dir)
+        pkg_dir = store.get_package_dir(
+            entry["language"], entry["name"], entry["version"]
+        )
+        changelog_shown = False
+        if pkg_dir:
+            yml_path = pkg_dir / "version.yml"
+            if yml_path.exists():
+                try:
+                    import yaml
+                    data = yaml.safe_load(yml_path.read_text(encoding="utf-8"))
+                    changelog = data.get("changelog", [])
+                    stability = data.get("stability_level", "")
+                    if changelog:
+                        entries = changelog if isinstance(changelog, list) else [changelog]
+                        text = "\n".join(f"  • {e}" for e in entries)
+                        text += f"\n\n  [dim]Stability: {stability}[/dim]"
+                        console.print(Panel(
+                            text,
+                            title=f"[bold]Changelog — v{entry.get('version')}[/bold]",
+                            border_style="dim",
+                        ))
+                        changelog_shown = True
+                except Exception:
+                    pass
+        if not changelog_shown:
+            console.print(
+                "[dim]Changelog not available — install the package first to read version.yml.[/dim]"
+            )

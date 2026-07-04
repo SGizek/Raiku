@@ -34,8 +34,9 @@ class RaikuConfig:
 
     # Behaviour
     safe_mode: bool = True          # Always prompt before running build commands
-    auto_trust: bool = False         # Never silently mark packages as trusted
+    auto_trust: bool = False        # Never silently mark packages as trusted
     verbose: bool = False
+    readonly: bool = False          # Prevent all cache writes when True
 
     # Display
     color: bool = True
@@ -75,6 +76,7 @@ class RaikuConfig:
             safe_mode=behaviour.get("safe_mode", True),
             auto_trust=behaviour.get("auto_trust", False),
             verbose=behaviour.get("verbose", False),
+            readonly=behaviour.get("readonly", False),
             color=display.get("color", True),
         )
 
@@ -94,6 +96,7 @@ class RaikuConfig:
                 "safe_mode": self.safe_mode,
                 "auto_trust": self.auto_trust,
                 "verbose": self.verbose,
+                "readonly": self.readonly,
             },
             "display": {"color": self.color},
         }

@@ -25,6 +25,7 @@ _SETTINGS: dict[str, tuple[type, str]] = {
     "auto_trust":     (bool,  "Never silently trust packages (keep false)"),
     "verbose":        (bool,  "Enable verbose output by default"),
     "color":          (bool,  "Enable colored CLI output"),
+    "readonly":       (bool,  "Prevent all cache writes (CI / shared environments)"),
     "index_url":      (str,   "URL of the remote index.json"),
     "raw_base_url":   (str,   "Base URL for raw package file fetching"),
 }
@@ -112,6 +113,11 @@ def config_set(ctx: click.Context, key: str, value: str) -> None:
         raise click.exceptions.Exit(1)
 
     # Security warning for dangerous settings
+    if key == "readonly" and coerced is True:
+        console.print(
+            "[yellow]Warning:[/yellow] Readonly mode prevents all installs, "
+            "cache writes, and uninstalls. Use in CI or shared environments only."
+        )
     if key == "auto_trust" and coerced is True:
         console.print(
             "[yellow]Warning:[/yellow] Enabling auto_trust means build commands "

@@ -19,23 +19,27 @@ from index.index_manager import IndexManager, IndexError
 @click.command("search")
 @click.argument("query")
 @click.option(
-    "--language", "-l",
-    default=None,
+    "--language", "-l", default=None,
     help=f"Filter by language. Supported: {', '.join(SUPPORTED_LANGUAGES)}",
 )
+@click.option("--tag", "-t", default=None,
+              help="Filter by tag (e.g. math, utils, concurrency).")
+@click.option("--sort", default="name",
+              type=click.Choice(["name", "latest", "language"], case_sensitive=False),
+              help="Sort results by: name (default), latest (release date), language.")
 @click.option(
-    "--tag", "-t",
-    default=None,
-    help="Filter by tag (e.g. math, utils, concurrency).",
-)
-@click.option(
-    "--limit", "-n",
-    default=20,
-    show_default=True,
+    "--limit", "-n", default=20, show_default=True,
     help="Maximum number of results to display.",
 )
 @click.pass_context
-def search_cmd(ctx: click.Context, query: str, language: str | None, tag: str | None, limit: int) -> None:
+def search_cmd(
+    ctx: click.Context,
+    query: str,
+    language: str | None,
+    tag: str | None,
+    sort: str,
+    limit: int,
+) -> None:
     """Search the package index for QUERY."""
     cfg: RaikuConfig = ctx.obj["config"]
     console: Console = ctx.obj["console"]
@@ -64,6 +68,18 @@ def search_cmd(ctx: click.Context, query: str, language: str | None, tag: str | 
             r for r in results
             if tag.lower() in [t.lower() for t in r.get("tags", [])]
         ]
+
+    # Sort
+    if sort == "latest":
+        results = sorted(
+            results,
+            key=lambda p: str(p.get("release_date", p.get("version", ""))),
+            reverse=True,
+        )
+    elif sort == "language":
+        results = sorted(results, key=lambda p: p.get("language", ""))
+    else:  # name (default)
+        results = sorted(results, key=lambda p: p.get("name", "").lower())
 
     if not results:
         console.print(

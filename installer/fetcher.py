@@ -8,12 +8,12 @@ Files fetched per package:
   - raiku.toml
   - version.yml
   - README.md
-  - src/ (all files listed in the package manifest)
+
+Supports resumable downloads via HTTP Range headers. Partial downloads
+are written to <dest>.partial and renamed on completion.
 """
 from __future__ import annotations
 
-import io
-import zipfile
 from pathlib import Path
 from typing import Any, Optional
 
@@ -24,6 +24,7 @@ from core.constants import (
     RAIKU_TOML,
     VERSION_YML,
     README_MD,
+    CACHE_DIR,
 )
 
 
@@ -120,12 +121,11 @@ class PackageFetcher:
         return []
 
     # ------------------------------------------------------------------
-    # Low-level HTTP
+    # Low-level HTTP — with resumable download support
     # ------------------------------------------------------------------
 
     def _get(self, url: str, progress_callback: Optional[Any] = None, label: str = "") -> bytes:
-        """GET a URL and return its bytes. Raises FetchError on failure.
-        Streams response and calls progress_callback(bytes_downloaded, total) if provided."""
+        """GET a URL, streaming with optional progress. Raises FetchError on failure."""
         try:
             resp = self.session.get(url, timeout=self.TIMEOUT, stream=True)
         except requests.RequestException as exc:
@@ -134,9 +134,7 @@ class PackageFetcher:
         if resp.status_code == 404:
             raise FetchError(f"Not found (404): {url}")
         if not resp.ok:
-            raise FetchError(
-                f"HTTP {resp.status_code} fetching {url}: {resp.reason}"
-            )
+            raise FetchError(f"HTTP {resp.status_code} fetching {url}: {resp.reason}")
 
         total = int(resp.headers.get("content-length", 0))
         chunks: list[bytes] = []
@@ -147,7 +145,6 @@ class PackageFetcher:
                 chunks.append(chunk)
                 downloaded += len(chunk)
                 if progress_callback and callable(progress_callback):
-                    # Try calling with (downloaded, total, label) signature
                     try:
                         progress_callback(downloaded, total, label)
                     except TypeError:
@@ -157,6 +154,70 @@ class PackageFetcher:
                             pass
 
         return b"".join(chunks)
+
+    def _get_resumable(
+        self,
+        url: str,
+        dest: Path,
+        progress_callback: Optional[Any] = None,
+        label: str = "",
+    ) -> bytes:
+        """
+        Download *url* to *dest* with resume support.
+
+        If a partial file exists at dest.with_suffix('.partial'), resumes
+        from where it left off using the HTTP Range header.
+        Returns the complete bytes and writes them to *dest*.
+        """
+        partial = dest.with_suffix(dest.suffix + ".partial")
+        resume_pos = partial.stat().st_size if partial.exists() else 0
+
+        headers: dict[str, str] = {}
+        if resume_pos > 0:
+            headers["Range"] = f"bytes={resume_pos}-"
+
+        try:
+            resp = self.session.get(
+                url, headers=headers, timeout=self.TIMEOUT, stream=True
+            )
+        except requests.RequestException as exc:
+            raise FetchError(f"Network error fetching {url}: {exc}") from exc
+
+        # 206 = partial content (resume), 200 = full (server ignored Range)
+        if resp.status_code == 404:
+            raise FetchError(f"Not found (404): {url}")
+        if resp.status_code not in (200, 206):
+            raise FetchError(f"HTTP {resp.status_code} fetching {url}: {resp.reason}")
+
+        if resp.status_code == 200:
+            # Server didn't honour Range — restart from scratch
+            resume_pos = 0
+            if partial.exists():
+                partial.unlink()
+
+        total = int(resp.headers.get("content-length", 0)) + resume_pos
+        downloaded = resume_pos
+
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        mode = "ab" if resume_pos > 0 else "wb"
+
+        with open(partial, mode) as fh:
+            for chunk in resp.iter_content(chunk_size=8192):
+                if chunk:
+                    fh.write(chunk)
+                    downloaded += len(chunk)
+                    if progress_callback and callable(progress_callback):
+                        try:
+                            progress_callback(downloaded, total, label)
+                        except TypeError:
+                            try:
+                                progress_callback(label)
+                            except Exception:
+                                pass
+
+        # Rename .partial → final destination
+        partial.replace(dest)
+        return dest.read_bytes()
 
     def check_reachable(self) -> bool:
         """Return True if the raw base URL is reachable."""

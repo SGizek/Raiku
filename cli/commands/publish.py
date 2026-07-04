@@ -37,12 +37,12 @@ from validator.rules_checker import RulesChecker, RulesViolationError
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
     help="Package directory to publish (default: current directory).",
 )
-@click.option(
-    "--dry-run", is_flag=True, default=False,
-    help="Validate and show output without writing any files.",
-)
+@click.option("--dry-run", is_flag=True, default=False,
+              help="Validate and show output without writing any files.")
+@click.option("--submit", is_flag=True, default=False,
+              help="Automatically open a PR on GitHub (requires raiku login).")
 @click.pass_context
-def publish_cmd(ctx: click.Context, package_dir: Path, dry_run: bool) -> None:
+def publish_cmd(ctx: click.Context, package_dir: Path, dry_run: bool, submit: bool) -> None:
     """Validate and prepare the current package for contribution (PR submission)."""
     cfg: RaikuConfig = ctx.obj["config"]
     console: Console = ctx.obj["console"]
@@ -148,7 +148,114 @@ def publish_cmd(ctx: click.Context, package_dir: Path, dry_run: bool) -> None:
 
     if dry_run:
         console.print("[dim]Dry run — no files written.[/dim]")
+    elif submit:
+        _submit_pr(console, name, version, language, target_path, index_entry, package_dir)
     else:
         console.print(
             f"\n[bold green]✓ Package '{name}' v{version} is valid and ready for submission.[/bold green]"
+        )
+
+
+def _submit_pr(
+    console: Console,
+    name: str,
+    version: str,
+    language: str,
+    target_path: str,
+    index_entry: dict,
+    package_dir: Path,
+) -> None:
+    """Open a PR on GitHub using the stored token from raiku login."""
+    from cli.commands.login import load_auth, get_token
+    import requests, base64, json as _json
+
+    token = get_token()
+    if not token:
+        console.print(
+            "[red]Not logged in.[/red] Run [cyan]raiku login[/cyan] first, "
+            "then retry with [cyan]raiku publish --submit[/cyan]."
+        )
+        raise click.exceptions.Exit(1)
+
+    from core.constants import REPO_OWNER, REPO_NAME
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    auth = load_auth()
+    username = auth.get("username", "contributor")
+    branch   = f"add/{language.lower()}/{name}"
+
+    console.print(f"  Creating branch [cyan]{branch}[/cyan] ...")
+
+    # 1. Get HEAD sha of main
+    resp = requests.get(
+        f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/git/ref/heads/main",
+        headers=headers, timeout=15,
+    )
+    if not resp.ok:
+        console.print(f"[red]Could not read main branch: {resp.status_code} {resp.text}[/red]")
+        raise click.exceptions.Exit(1)
+
+    main_sha = resp.json()["object"]["sha"]
+
+    # 2. Create branch
+    requests.post(
+        f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/git/refs",
+        headers=headers, timeout=15,
+        json={"ref": f"refs/heads/{branch}", "sha": main_sha},
+    )
+
+    # 3. Upload each package file
+    for fname in ("raiku.toml", "version.yml", "README.md"):
+        fpath = package_dir / fname
+        if not fpath.exists():
+            continue
+        content_b64 = base64.b64encode(fpath.read_bytes()).decode()
+        api_path = f"{target_path}/{fname}"
+        requests.put(
+            f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{api_path}",
+            headers=headers, timeout=15,
+            json={
+                "message": f"add({language}): {name} v{version} — {fname}",
+                "content": content_b64,
+                "branch": branch,
+            },
+        )
+
+    console.print(f"  [green]✓[/green] Package files uploaded to branch [cyan]{branch}[/cyan]")
+
+    # 4. Open PR
+    pr_body = (
+        f"## {name} v{version} [{language}]\n\n"
+        f"{index_entry.get('description', '')}\n\n"
+        f"**Index entry:**\n```json\n{_json.dumps(index_entry, indent=2)}\n```\n\n"
+        f"Submitted via `raiku publish --submit`"
+    )
+    pr_resp = requests.post(
+        f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/pulls",
+        headers=headers, timeout=15,
+        json={
+            "title": f"add({language}): {name} v{version}",
+            "head": branch,
+            "base": "main",
+            "body": pr_body,
+        },
+    )
+
+    if pr_resp.ok:
+        pr_url = pr_resp.json().get("html_url", "")
+        console.print(Panel(
+            f"[bold green]✓ Pull Request opened![/bold green]\n\n"
+            f"  [link={pr_url}]{pr_url}[/link]",
+            border_style="green",
+        ))
+    else:
+        console.print(
+            f"[yellow]PR could not be opened automatically: "
+            f"{pr_resp.status_code} {pr_resp.text}[/yellow]\n"
+            "Open it manually at https://github.com/SGizek/Raiku/pulls"
         )
