@@ -18,19 +18,19 @@ from index.index_manager import IndexManager, IndexError
 
 @click.command("search")
 @click.argument("query")
-@click.option(
-    "--language", "-l", default=None,
-    help=f"Filter by language. Supported: {', '.join(SUPPORTED_LANGUAGES)}",
-)
+@click.option("--language", "-l", default=None,
+              help=f"Filter by language. Supported: {', '.join(SUPPORTED_LANGUAGES)}")
 @click.option("--tag", "-t", default=None,
               help="Filter by tag (e.g. math, utils, concurrency).")
 @click.option("--sort", default="name",
               type=click.Choice(["name", "latest", "language"], case_sensitive=False),
-              help="Sort results by: name (default), latest (release date), language.")
-@click.option(
-    "--limit", "-n", default=20, show_default=True,
-    help="Maximum number of results to display.",
-)
+              help="Sort results by: name (default), latest, language.")
+@click.option("--verified", "only_verified", is_flag=True, default=False,
+              help="Show only verified packages.")
+@click.option("--interactive", "-i", "interactive_mode", is_flag=True, default=False,
+              help="Open the interactive TUI package browser.")
+@click.option("--limit", "-n", default=20, show_default=True,
+              help="Maximum number of results (non-interactive mode).")
 @click.pass_context
 def search_cmd(
     ctx: click.Context,
@@ -38,6 +38,8 @@ def search_cmd(
     language: str | None,
     tag: str | None,
     sort: str,
+    only_verified: bool,
+    interactive_mode: bool,
     limit: int,
 ) -> None:
     """Search the package index for QUERY."""
@@ -81,6 +83,16 @@ def search_cmd(
     else:  # name (default)
         results = sorted(results, key=lambda p: p.get("name", "").lower())
 
+    # Verified filter
+    if only_verified:
+        results = [r for r in results if r.get("verified")]
+
+    # Interactive mode
+    if interactive_mode:
+        from cli.commands.interactive import run_interactive
+        run_interactive(console, results, query, cfg)
+        return
+
     if not results:
         console.print(
             f"[yellow]No packages found[/yellow] matching "
@@ -106,21 +118,22 @@ def search_cmd(
     table.add_column("Name", style="bold cyan", min_width=20)
     table.add_column("Version", style="green", min_width=8)
     table.add_column("Language", style="yellow", min_width=10)
-    table.add_column("Author", style="white", min_width=15)
-    table.add_column("Tags", style="dim cyan", min_width=20)
-    table.add_column("Description", style="dim white", min_width=30)
+    table.add_column("Author", style="white", min_width=12)
+    table.add_column("Tags", style="dim cyan", min_width=16)
+    table.add_column("", width=3)  # verified badge column
 
+    from rich.text import Text as RichText
     for pkg in shown:
         tags_str = ", ".join(pkg.get("tags", []))
+        badge = RichText("✓", style="bold green") if pkg.get("verified") else RichText("")
         table.add_row(
             pkg.get("name", "—"),
             pkg.get("version", "—"),
             pkg.get("language", "—"),
             pkg.get("author", "—"),
             tags_str or "—",
-            pkg.get("description", ""),
+            badge,
         )
-
     console.print(table)
 
     if total > limit:

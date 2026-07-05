@@ -23,8 +23,11 @@ from installer.cache_store import CacheStore
               help="Output as JSON.")
 @click.option("--changelog", "show_changelog", is_flag=True, default=False,
               help="Show the full changelog from version.yml.")
+@click.option("--deps-tree", "show_deps_tree", is_flag=True, default=False,
+              help="Show the full recursive dependency tree.")
 @click.pass_context
-def info_cmd(ctx: click.Context, package: str, as_json: bool, show_changelog: bool) -> None:
+def info_cmd(ctx: click.Context, package: str, as_json: bool,
+             show_changelog: bool, show_deps_tree: bool) -> None:
     """Show detailed information about PACKAGE."""
     cfg: RaikuConfig = ctx.obj["config"]
     console: Console = ctx.obj["console"]
@@ -129,4 +132,23 @@ def info_cmd(ctx: click.Context, package: str, as_json: bool, show_changelog: bo
         if not changelog_shown:
             console.print(
                 "[dim]Changelog not available — install the package first to read version.yml.[/dim]"
+            )
+
+    # --- Dependency tree panel ---
+    if show_deps_tree:
+        try:
+            from core.resolver import DependencyResolver
+            from index.index_manager import IndexManager, IndexError as IE
+            manager = IndexManager(index_url=cfg.index_url)
+            manager.load()
+            tree_str = DependencyResolver(manager).dependency_tree(package)
+            console.print(Panel(
+                tree_str,
+                title="[bold]Dependency Tree[/bold]",
+                border_style="cyan",
+            ))
+        except Exception as exc:
+            console.print(
+                f"[yellow]Could not build dependency tree: {exc}[/yellow]\n"
+                "[dim]Run raiku sync to load the index.[/dim]"
             )

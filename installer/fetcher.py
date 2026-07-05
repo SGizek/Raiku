@@ -9,11 +9,15 @@ Files fetched per package:
   - version.yml
   - README.md
 
-Supports resumable downloads via HTTP Range headers. Partial downloads
-are written to <dest>.partial and renamed on completion.
+Features:
+  - Resumable downloads via HTTP Range headers
+  - Exponential-backoff retry on transient network errors
+  - Parallel multi-file fetching via concurrent.futures
 """
 from __future__ import annotations
 
+import time
+import concurrent.futures
 from pathlib import Path
 from typing import Any, Optional
 
@@ -35,6 +39,9 @@ class FetchError(Exception):
 class PackageFetcher:
     """Fetches individual package files from the Raiku GitHub repository."""
 
+    MAX_RETRIES: int = 3
+    RETRY_BACKOFF: float = 1.5   # seconds; doubles each retry
+
     STANDARD_FILES: tuple[str, ...] = (RAIKU_TOML, VERSION_YML, README_MD)
     TIMEOUT: int = 30
 
@@ -54,31 +61,71 @@ class PackageFetcher:
         self,
         package_path: str,
         progress_callback: Optional[Any] = None,
+        parallel: bool = True,
     ) -> dict[str, bytes]:
         """
         Fetch all standard files for the package at *package_path*.
 
+        When *parallel* is True (default), all files are fetched concurrently.
         Returns a dict mapping relative filename → raw bytes.
-        Raises FetchError on any download failure.
+        Raises FetchError on any non-optional download failure.
         """
-        fetched: dict[str, bytes] = {}
         all_files = list(self.STANDARD_FILES)
 
-        for filename in all_files:
+        if parallel:
+            return self._fetch_parallel(package_path, all_files, progress_callback)
+        else:
+            return self._fetch_sequential(package_path, all_files, progress_callback)
+
+    def _fetch_parallel(
+        self,
+        package_path: str,
+        filenames: list[str],
+        progress_callback: Optional[Any],
+    ) -> dict[str, bytes]:
+        """Fetch files concurrently using a thread pool."""
+        fetched: dict[str, bytes] = {}
+
+        def _fetch_one(filename: str) -> tuple[str, bytes | None]:
             url = f"{self.raw_base_url}/{package_path}/{filename}"
             try:
-                data = self._get(url, progress_callback=progress_callback, label=filename)
+                data = self._get_with_retry(url, progress_callback=progress_callback,
+                                            label=filename)
+                return filename, data
+            except FetchError:
+                if filename == README_MD:
+                    return filename, None  # optional
+                raise
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            futures = {pool.submit(_fetch_one, f): f for f in filenames}
+            for future in concurrent.futures.as_completed(futures):
+                filename, data = future.result()
+                if data is not None:
+                    fetched[filename] = data
+
+        return fetched
+
+    def _fetch_sequential(
+        self,
+        package_path: str,
+        filenames: list[str],
+        progress_callback: Optional[Any],
+    ) -> dict[str, bytes]:
+        """Fetch files one at a time (fallback)."""
+        fetched: dict[str, bytes] = {}
+        for filename in filenames:
+            url = f"{self.raw_base_url}/{package_path}/{filename}"
+            try:
+                data = self._get_with_retry(url, progress_callback=progress_callback,
+                                            label=filename)
                 fetched[filename] = data
-                if progress_callback:
-                    progress_callback(filename)
             except FetchError as exc:
                 if filename == README_MD:
-                    # README is optional — skip silently
                     continue
                 raise FetchError(
-                    f"Failed to fetch '{filename}' for package at '{package_path}': {exc}"
+                    f"Failed to fetch '{filename}' for '{package_path}': {exc}"
                 ) from exc
-
         return fetched
 
     def fetch_src_file(self, package_path: str, src_filename: str) -> bytes:
@@ -123,6 +170,35 @@ class PackageFetcher:
     # ------------------------------------------------------------------
     # Low-level HTTP — with resumable download support
     # ------------------------------------------------------------------
+
+    def _get_with_retry(
+        self,
+        url: str,
+        progress_callback: Optional[Any] = None,
+        label: str = "",
+    ) -> bytes:
+        """
+        Fetch *url* with exponential-backoff retry on transient errors.
+        Raises FetchError after MAX_RETRIES failed attempts.
+        """
+        last_exc: Exception | None = None
+        delay = self.RETRY_BACKOFF
+
+        for attempt in range(1, self.MAX_RETRIES + 1):
+            try:
+                return self._get(url, progress_callback=progress_callback, label=label)
+            except FetchError as exc:
+                # 404 is definitive — no point retrying
+                if "404" in str(exc):
+                    raise
+                last_exc = exc
+                if attempt < self.MAX_RETRIES:
+                    time.sleep(delay)
+                    delay *= 2
+
+        raise FetchError(
+            f"Failed after {self.MAX_RETRIES} attempts: {last_exc}"
+        ) from last_exc
 
     def _get(self, url: str, progress_callback: Optional[Any] = None, label: str = "") -> bytes:
         """GET a URL, streaming with optional progress. Raises FetchError on failure."""

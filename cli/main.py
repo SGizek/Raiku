@@ -117,6 +117,14 @@ from cli.commands.rollback   import rollback_cmd
 from cli.commands.login      import login_cmd, whoami_cmd, logout_cmd
 
 # -----------------------------------------------------------------------
+# Batch 4 commands
+# -----------------------------------------------------------------------
+from cli.commands.lint       import lint_cmd
+from cli.commands.bench      import bench_cmd
+from cli.commands.repair     import repair_cmd
+from cli.commands.upgrade    import upgrade_cmd
+
+# -----------------------------------------------------------------------
 # Register all commands
 # -----------------------------------------------------------------------
 main.add_command(sync_cmd,       name="sync")
@@ -155,6 +163,12 @@ main.add_command(rollback_cmd,   name="rollback")
 main.add_command(login_cmd,      name="login")
 main.add_command(whoami_cmd,     name="whoami")
 main.add_command(logout_cmd,     name="logout")
+
+# Batch 4
+main.add_command(lint_cmd,       name="lint")
+main.add_command(bench_cmd,      name="bench")
+main.add_command(repair_cmd,     name="repair")
+main.add_command(upgrade_cmd,    name="upgrade")
 
 
 if __name__ == "__main__":

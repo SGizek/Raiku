@@ -105,13 +105,14 @@ class IndexManager:
     def find(self, name: str) -> Optional[dict[str, Any]]:
         """
         Find a package by exact name. Returns the index entry or None.
-        Case-insensitive.
+        Case-insensitive. Supports @namespace/name format.
         """
         data = self.load()
         packages = data.get("packages", [])
-        name_lower = name.lower()
+        name_lower = _resolve_name(name).lower()
         for pkg in packages:
-            if pkg.get("name", "").lower() == name_lower:
+            pkg_name = _resolve_name(pkg.get("name", "")).lower()
+            if pkg_name == name_lower:
                 return pkg
         return None
 
@@ -193,3 +194,36 @@ def _validate_index_structure(data: dict) -> None:
                 f"Package '{pkg.get('name')}' has unsupported language: "
                 f"'{pkg.get('language')}'"
             )
+
+
+# ---------------------------------------------------------------------------
+# Namespace helpers
+# ---------------------------------------------------------------------------
+
+def _resolve_name(name: str) -> str:
+    """
+    Resolve a potentially namespaced package name to a bare name for lookup.
+
+    Supports the @namespace/package-name format:
+      @SGizek/fast-math  →  fast-math  (namespace stripped for index lookup)
+      fast-math          →  fast-math  (unchanged)
+
+    The namespace is stored separately in the index under the 'namespace' field.
+    """
+    if name.startswith("@") and "/" in name:
+        return name.split("/", 1)[1]
+    return name
+
+
+def parse_namespace(name: str) -> tuple[str | None, str]:
+    """
+    Split a namespaced package name into (namespace, bare_name).
+
+    Examples:
+      "@SGizek/fast-math"  →  ("SGizek", "fast-math")
+      "fast-math"          →  (None, "fast-math")
+    """
+    if name.startswith("@") and "/" in name:
+        ns, bare = name[1:].split("/", 1)
+        return ns, bare
+    return None, name
